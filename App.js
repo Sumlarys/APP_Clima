@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, TextInput, Alert, Image } from 'react-native';
 
 // Mapeo de las provincias de Andalucía con sus códigos correspondientes
@@ -20,7 +20,7 @@ const iconosClima = {
   nublado: require('./icons/cloudy.png'),
   lluvioso: require('./icons/rainy.jpg'),
   tormenta: require('./icons/storm.png'),
-  // Añade más iconos según los posibles valores de description
+  default: require('./icons/default.png'),
 };
 
 // Componente principal de la aplicación de clima
@@ -28,6 +28,13 @@ const ClimaApp = () => {
   const [provincia, setProvincia] = useState(''); // Estado para almacenar el nombre de la provincia
   const [tiempo, setTiempo] = useState(null);     // Estado para almacenar los datos del clima
   const [loading, setLoading] = useState(false);  // Estado para mostrar el indicador de carga
+
+   // Ejecutar este efecto solo cuando `tiempo` cambie
+   useEffect(() => {
+    if (tiempo) {
+      console.log(tiempo);
+    }
+  }, [tiempo]);
 
   // Función que obtiene los datos del clima de la API
   const fetchClima = async () => {
@@ -43,14 +50,17 @@ const ClimaApp = () => {
       // Llamada a la API con axios usando el código de la provincia
       const response = await axios.get(`https://www.el-tiempo.net/api/json/v2/provincias/${codigo}`);
       const data = response.data; // Obtiene los datos de la respuesta
-
       // Verifica que los datos de clima existan
-      if (data.temperatures && data.stateSky && data.stateSky.description) {
-        setTiempo({
-          tempMax: data.temperatures.max,
-          tempMin: data.temperatures.min,
-          description: data.stateSky.description.toLowerCase(), // Normaliza el texto para facilitar el mapeo de íconos
-        });
+      if (data != null) {
+        const nuevoTiempo = {
+          tempMax: data.ciudades[0].temperatures.max,
+          tempMin: data.ciudades[0].temperatures.min,
+          description: data.ciudades[0].stateSky.description.toLowerCase(),
+          title: data.title,
+          today: data.today.p,
+        };
+        console.log("Nuevo tiempo:", nuevoTiempo); // Aseguramos de que estamos recibiendo los datos
+        setTiempo(nuevoTiempo);
       } else {
         Alert.alert('Información', 'No se encontraron datos de clima para esta provincia.');
         setTiempo(null);
@@ -83,17 +93,20 @@ const ClimaApp = () => {
       {loading && <Text>Cargando...</Text>}
 
       {/* Muestra los datos del clima si están disponibles */}
-      {tiempo && (
+      {(tiempo != null) && (
         <View style={styles.weatherContainer}>
+          <Text style={styles.header}>{tiempo.title}</Text>
           <Text style={styles.temperature}>{tiempo.tempMax}ºC de máxima</Text>
           <Text style={styles.temperature}>{tiempo.tempMin}ºC de mínima</Text>
-          <Text style={styles.description}>{tiempo.description}</Text>
-
-          {/* Muestra el icono basado en la descripción del clima, o un icono genérico */}
-          <Image 
-            source={iconosClima[tiempo.description] || require('./icons/default.png')}
-            style={styles.icon}
-          />
+          <View style={styles.description}>
+            <Text style={styles.description}>{tiempo.description}</Text>
+            {/* Muestra el icono basado en la descripción del clima, o un icono genérico */}
+            <Image 
+              source={iconosClima[tiempo.description] || iconosClima.default}
+              style={styles.icon}
+            />
+          </View>
+          <Text style={styles.description}>{tiempo.today}</Text>
         </View>
       )}
     </View>
@@ -109,6 +122,12 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#f0f8ff',
   },
+  weatherContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignContent: 'center',
+    padding: 20,
+  },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -122,6 +141,26 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 20,
   },
+  temperature: {
+    padding: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    flexDirection: 'row',
+    color: 'blue',
+  },
+  description:{
+    padding: 10,
+    fontSize: 16,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  icon:{
+    width: 100,
+    height: 100,
+    marginLeft: 20,
+  }
 });
 
 export default ClimaApp;
